@@ -39,13 +39,40 @@ export default function PatientHistory() {
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const loadData = () => {
+  const userKey = user?.id || 'guest';
+  const ADDED_KEY = `medichain_added_records_${userKey}`;
+  const DELETED_KEY = `medichain_deleted_records_${userKey}`;
+
+  const loadData = async () => {
     if (!user) return;
-    Promise.all([getFullMedicalHistory(user.id), getPatientProfile(user.id)]).then(([h, p]) => {
-      setHistory(h);
+    try {
+      const [baseRecords, p] = await Promise.all([
+        getFullMedicalHistory(user.id),
+        getPatientProfile(user.id),
+      ]);
+
+      const localAdded: MedicalHistoryEntry[] = JSON.parse(
+        localStorage.getItem(ADDED_KEY) || '[]'
+      );
+      const localDeleted: string[] = JSON.parse(
+        localStorage.getItem(DELETED_KEY) || '[]'
+      );
+
+      const combinedMap = new Map<string, MedicalHistoryEntry>();
+      baseRecords.forEach((r) => combinedMap.set(r.id, r));
+      localAdded.forEach((r) => combinedMap.set(r.id, r));
+
+      const finalHistory = Array.from(combinedMap.values()).filter(
+        (r) => !localDeleted.includes(r.id) && !localDeleted.includes(r.title)
+      );
+
+      setHistory(finalHistory);
       setProfile(p);
+    } catch (err) {
+      console.error('Error loading patient history:', err);
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   useEffect(() => {
@@ -71,42 +98,61 @@ export default function PatientHistory() {
       summary: summary.trim(),
     };
 
-    const created = await createMedicalRecord(payload);
-    setSaving(false);
+    const newRecord: MedicalHistoryEntry = {
+      id: `rec-${Date.now()}`,
+      title: title.trim(),
+      type,
+      doctor: doctor.trim(),
+      hospital: hospital.trim(),
+      date,
+      summary: summary.trim(),
+    };
 
-    if (created) {
-      setHistory((prev) => [created, ...prev]);
-      showToast('🎉 Medical record saved to MongoDB!');
-    } else {
-      // Local fallback entry if offline / guest
-      const fallbackEntry: MedicalHistoryEntry = {
-        id: `rec-${Date.now()}`,
-        title: title.trim(),
-        type,
-        doctor: doctor.trim(),
-        hospital: hospital.trim(),
-        date,
-        summary: summary.trim(),
-      };
-      setHistory((prev) => [fallbackEntry, ...prev]);
-      showToast('🎉 Medical record saved!');
+    // Try MongoDB saving
+    const created = await createMedicalRecord(payload);
+    const recordToSave = created || newRecord;
+
+    // Save to local storage for permanent reload persistence
+    try {
+      const existingAdded: MedicalHistoryEntry[] = JSON.parse(
+        localStorage.getItem(ADDED_KEY) || '[]'
+      );
+      localStorage.setItem(ADDED_KEY, JSON.stringify([recordToSave, ...existingAdded]));
+    } catch {
+      // ignore
     }
 
+    setHistory((prev) => [recordToSave, ...prev]);
+    setSaving(false);
     setShowAddModal(false);
     setTitle('');
     setDoctor('');
     setHospital('');
     setSummary('');
+
+    showToast('🎉 Medical record saved!');
   };
 
   const handleDeleteRecord = async (id: string, recordTitle: string) => {
     if (!window.confirm(`Are you sure you want to delete "${recordTitle}"?`)) return;
 
-    // Immediately remove from UI state
+    // 1. Immediately remove from local state
     setHistory((prev) => prev.filter((r) => r.id !== id && r.title !== recordTitle));
     showToast(`🗑️ Record deleted.`);
 
-    // Delete in background from MongoDB
+    // 2. Add to local deleted storage for permanent persistence
+    try {
+      const existingDeleted: string[] = JSON.parse(
+        localStorage.getItem(DELETED_KEY) || '[]'
+      );
+      if (!existingDeleted.includes(id)) existingDeleted.push(id);
+      if (!existingDeleted.includes(recordTitle)) existingDeleted.push(recordTitle);
+      localStorage.setItem(DELETED_KEY, JSON.stringify(existingDeleted));
+    } catch {
+      // ignore
+    }
+
+    // 3. Delete from MongoDB API
     await deleteMedicalRecordApi(id);
   };
 

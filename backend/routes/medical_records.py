@@ -90,24 +90,26 @@ def get_current_pid(authorization: str | None) -> Any:
             return patient["_id"]
         except Exception:
             pass
-    return "demo_guest_patient"
+    return None
 
 @router.get("")
 def get_medical_records(authorization: str | None = Header(default=None)):
     pid = get_current_pid(authorization)
     db = get_database()
-    patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}]}
     
+    if pid:
+        patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}, {"patient_id": "demo_guest_patient"}]}
+    else:
+        patient_query = {"patient_id": "demo_guest_patient"}
+        
     records = list(db.medical_records.find(patient_query).sort("date", -1))
-    patient_meta = db.patient_metadata.find_one(patient_query)
     
-    # If this patient has NEVER had demo records seeded, seed demo records once into MongoDB
-    if not patient_meta:
-        db.patient_metadata.insert_one({"patient_id": pid, "has_initialized_demo": True})
+    if len(records) == 0:
+        target_pid = pid if pid else "demo_guest_patient"
         seeded = []
         for demo in DEFAULT_DEMO_RECORDS:
             doc = {
-                "patient_id": pid,
+                "patient_id": target_pid,
                 "title": demo["title"],
                 "type": demo["type"],
                 "doctor": demo["doctor"],
@@ -128,11 +130,12 @@ def get_medical_records(authorization: str | None = Header(default=None)):
 @router.post("")
 def add_medical_record(payload: MedicalRecordCreate, authorization: str | None = Header(default=None)):
     pid = get_current_pid(authorization)
+    target_pid = pid if pid else "demo_guest_patient"
     today_str = datetime.now().strftime("%Y-%m-%d")
     db = get_database()
     
     doc = {
-        "patient_id": pid,
+        "patient_id": target_pid,
         "title": (payload.title or "Medical Examination").strip(),
         "type": payload.type or "Consultation",
         "doctor": (payload.doctor or "Attending Physician").strip(),
@@ -146,19 +149,11 @@ def add_medical_record(payload: MedicalRecordCreate, authorization: str | None =
     res = db.medical_records.insert_one(doc)
     doc["_id"] = res.inserted_id
     
-    patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}]}
-    db.patient_metadata.update_one(patient_query, {"$set": {"has_initialized_demo": True}}, upsert=True)
-    
     return serialize_record(doc)
 
 @router.delete("/{record_id}")
 def delete_medical_record(record_id: str, authorization: str | None = Header(default=None)):
-    pid = get_current_pid(authorization)
     db = get_database()
-    patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}]}
-    
-    db.patient_metadata.update_one(patient_query, {"$set": {"has_initialized_demo": True}}, upsert=True)
-    
     try:
         oid = ObjectId(record_id)
         db.medical_records.delete_one({"_id": oid})
