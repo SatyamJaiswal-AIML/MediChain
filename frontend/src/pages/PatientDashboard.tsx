@@ -292,8 +292,6 @@ export default function PatientDashboard() {
       {selectedHospital && (
         <HospitalDetailModal hospital={selectedHospital} onClose={() => setSelectedHospital(null)} />
       )}
-
-      <FloatingAIButton />
     </div>
   );
 }

@@ -10,6 +10,7 @@ from routes.appointments import router as appointments_router
 from routes.disease_prediction import router as disease_prediction_router
 from routes.notifications import router as notifications_router
 from routes.reminders import router as reminders_router
+from routes.medical_records import router as medical_records_router
 
 
 app = FastAPI(
@@ -41,6 +42,8 @@ app.include_router(appointments_router)
 app.include_router(disease_prediction_router)
 app.include_router(notifications_router)
 app.include_router(reminders_router)
+app.include_router(medical_records_router)
+
 
 
 @app.get("/")

@@ -178,19 +178,30 @@ export async function getHealthSummary(_patientId: string): Promise<HealthMetric
 }
 
 /** TODO(API): GET /api/patients/:id/history?limit= */
+import { fetchMedicalRecords } from './medicalRecordsApi';
+
 export async function getRecentMedicalHistory(
   _patientId: string,
   limit: number = 3
 ): Promise<MedicalHistoryEntry[]> {
+  const records = await fetchMedicalRecords();
+  if (records && records.length > 0) {
+    const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+    return sorted.slice(0, limit);
+  }
   const sorted = [...MOCK_HISTORY].sort((a, b) => b.date.localeCompare(a.date));
-  return delay(sorted.slice(0, limit));
+  return sorted.slice(0, limit);
 }
 
-/** TODO(API): GET /api/patients/:id/history/full */
 export async function getFullMedicalHistory(_patientId: string): Promise<MedicalHistoryEntry[]> {
+  const records = await fetchMedicalRecords();
+  if (records && records.length > 0) {
+    return [...records].sort((a, b) => b.date.localeCompare(a.date));
+  }
   const sorted = [...MOCK_HISTORY].sort((a, b) => b.date.localeCompare(a.date));
-  return delay(sorted);
+  return sorted;
 }
+
 
 /** TODO(API): GET /api/patients/:id/profile */
 export async function getPatientProfile(_patientId: string): Promise<PatientProfile> {

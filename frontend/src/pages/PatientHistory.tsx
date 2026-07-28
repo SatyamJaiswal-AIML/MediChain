@@ -7,6 +7,11 @@ import {
   type MedicalHistoryType,
   type PatientProfile,
 } from '../services/patient';
+import {
+  createMedicalRecord,
+  deleteMedicalRecordApi,
+  type NewMedicalRecordPayload,
+} from '../services/medicalRecordsApi';
 import MedicalTimelineItem from '../components/MedicalTimelineItem';
 import AllergyBanner from '../components/AllergyBanner';
 import FilterTabs from '../components/FilterTabs';
@@ -23,14 +28,73 @@ export default function PatientHistory() {
   const [filter, setFilter] = useState<FilterValue>('All');
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
+  // Add Record Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<MedicalHistoryType>('Consultation');
+  const [doctor, setDoctor] = useState('');
+  const [hospital, setHospital] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [summary, setSummary] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const loadData = () => {
     if (!user) return;
     Promise.all([getFullMedicalHistory(user.id), getPatientProfile(user.id)]).then(([h, p]) => {
       setHistory(h);
       setProfile(p);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    loadData();
   }, [user]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleAddRecord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !doctor.trim() || !hospital.trim() || !summary.trim()) return;
+
+    setSaving(true);
+    const payload: NewMedicalRecordPayload = {
+      title: title.trim(),
+      type,
+      doctor: doctor.trim(),
+      hospital: hospital.trim(),
+      date,
+      summary: summary.trim(),
+    };
+
+    const created = await createMedicalRecord(payload);
+    setSaving(false);
+
+    if (created) {
+      setShowAddModal(false);
+      setTitle('');
+      setDoctor('');
+      setHospital('');
+      setSummary('');
+      showToast('🎉 Medical record saved to MongoDB!');
+      loadData();
+    } else {
+      showToast('❌ Failed to save record.');
+    }
+  };
+
+  const handleDeleteRecord = async (id: string, recordTitle: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${recordTitle}"?`)) return;
+    const ok = await deleteMedicalRecordApi(id);
+    if (ok) {
+      showToast(`🗑️ Record deleted.`);
+      loadData();
+    }
+  };
 
   const counts = useMemo(() => {
     const base: Record<FilterValue, number> = {
@@ -40,7 +104,9 @@ export default function PatientHistory() {
       Prescription: 0,
       Procedure: 0,
     };
-    history.forEach((h) => { base[h.type] += 1; });
+    history.forEach((h) => {
+      if (base[h.type] !== undefined) base[h.type] += 1;
+    });
     return base;
   }, [history]);
 
@@ -60,6 +126,49 @@ export default function PatientHistory() {
 
   return (
     <div className="patient-history">
+      {/* Header bar with Add Record Button */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+        }}
+      >
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Medical History & Records</h2>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            Persistent health record repository backed by MongoDB
+          </p>
+        </div>
+        <button
+          className="btn btn-primary"
+          style={{ padding: '0.6rem 1.1rem', fontSize: '0.88rem', fontWeight: 600 }}
+          onClick={() => setShowAddModal(true)}
+        >
+          ＋ Add Medical Record
+        </button>
+      </div>
+
+      {toastMessage && (
+        <div
+          style={{
+            padding: '0.6rem 1rem',
+            background: '#f0fdf4',
+            color: '#16a34a',
+            borderRadius: '8px',
+            fontWeight: 600,
+            fontSize: '0.88rem',
+            marginBottom: '1rem',
+            border: '1px solid #bbf7d0',
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
+
       {profile && (
         <AllergyBanner
           allergies={profile.allergies}
@@ -99,8 +208,160 @@ export default function PatientHistory() {
       ) : (
         <div className="patient-history__timeline">
           {filtered.map((entry, index) => (
-            <MedicalTimelineItem key={entry.id} entry={entry} isLast={index === filtered.length - 1} />
+            <div key={entry.id} style={{ position: 'relative' }}>
+              <MedicalTimelineItem entry={entry} isLast={index === filtered.length - 1} />
+              <button
+                title="Delete record"
+                onClick={() => handleDeleteRecord(entry.id, entry.title)}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  opacity: 0.5,
+                }}
+              >
+                🗑️
+              </button>
+            </div>
           ))}
+        </div>
+      )}
+
+      {/* Add Medical Record Modal */}
+      {showAddModal && (
+        <div
+          className="hospital-modal-scrim"
+          onClick={() => setShowAddModal(false)}
+          style={{ zIndex: 1000 }}
+        >
+          <div
+            className="hospital-modal fade-in-up"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '520px', padding: '1.5rem' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem' }}>＋ Add New Medical Record</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddRecord} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                  Record Title:
+                </label>
+                <input
+                  type="text"
+                  className="med-form-input"
+                  placeholder="e.g. Annual Blood Profile / Cardiac Consultation"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                    Record Type:
+                  </label>
+                  <select
+                    className="med-form-input"
+                    value={type}
+                    onChange={(e) => setType(e.target.value as MedicalHistoryType)}
+                  >
+                    <option value="Consultation">Consultation</option>
+                    <option value="Lab Report">Lab Report</option>
+                    <option value="Prescription">Prescription</option>
+                    <option value="Procedure">Procedure</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                    Date:
+                  </label>
+                  <input
+                    type="date"
+                    className="med-form-input"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                  Attending Doctor:
+                </label>
+                <input
+                  type="text"
+                  className="med-form-input"
+                  placeholder="e.g. Dr. Rhea Kapoor"
+                  value={doctor}
+                  onChange={(e) => setDoctor(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                  Hospital / Clinic Name:
+                </label>
+                <input
+                  type="text"
+                  className="med-form-input"
+                  placeholder="e.g. Fortis Escorts / Apollo Hospital"
+                  value={hospital}
+                  onChange={(e) => setHospital(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                  Summary / Notes:
+                </label>
+                <textarea
+                  className="med-form-input"
+                  rows={3}
+                  placeholder="Summary of diagnosis, advice, or results..."
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  required
+                  style={{ fontFamily: 'inherit', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1, fontWeight: 700 }}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : '💾 Save to MongoDB'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
