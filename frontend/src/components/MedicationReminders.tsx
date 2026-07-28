@@ -21,34 +21,14 @@ export default function MedicationReminders() {
   const [newTime, setNewTime] = useState('09:00');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const localStorageKey = `medichain_reminders_${user?.id || 'guest'}`;
-
   const loadData = async () => {
     try {
       const items = await fetchReminders();
-      if (items && items.length > 0) {
+      if (items) {
         setReminders(items);
-        setLoading(false);
-        return;
       }
-    } catch {
-      // Fallback to localStorage
-    }
-
-    try {
-      const saved = localStorage.getItem(localStorageKey);
-      if (saved) {
-        setReminders(JSON.parse(saved));
-      } else {
-        const defaultReminders: ReminderItem[] = [
-          { id: 'r1', medicine: 'Cetirizine 10mg', date: todayStr, time: '21:00', done: false },
-          { id: 'r2', medicine: 'Multivitamin 1 tab', date: todayStr, time: '08:00', done: true },
-          { id: 'r3', medicine: 'Fluticasone Spray', date: todayStr, time: '21:30', done: false },
-        ];
-        setReminders(defaultReminders);
-      }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to load reminders:', err);
     } finally {
       setLoading(false);
     }
@@ -57,14 +37,6 @@ export default function MedicationReminders() {
   useEffect(() => {
     loadData();
   }, [user?.id]);
-
-  const saveFallbackLocally = (items: ReminderItem[]) => {
-    try {
-      localStorage.setItem(localStorageKey, JSON.stringify(items));
-    } catch {
-      // ignore
-    }
-  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -99,7 +71,6 @@ export default function MedicationReminders() {
         }
         return r;
       });
-      saveFallbackLocally(next);
       return [...next].sort((a, b) => Number(a.done) - Number(b.done));
     });
   };
@@ -129,7 +100,6 @@ export default function MedicationReminders() {
 
     setReminders((prev) => {
       const updated = [newItem, ...prev];
-      saveFallbackLocally(updated);
       return updated;
     });
 
@@ -149,7 +119,6 @@ export default function MedicationReminders() {
 
     setReminders((prev) => {
       const updated = prev.filter((r) => r.id !== id);
-      saveFallbackLocally(updated);
       return updated;
     });
     showToast(`🗑️ Removed ${name}`);

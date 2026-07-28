@@ -84,14 +84,8 @@ DEFAULT_DEMO_RECORDS = [
 ]
 
 def get_patient_identity(authorization: str | None) -> tuple[Any, dict]:
-    db = get_database()
-    if authorization:
-        try:
-            patient = current_patient(authorization)
-            return patient["_id"], {"$or": [{"patient_id": patient["_id"]}, {"patient_id": str(patient["_id"])}]}
-        except Exception:
-            pass
-    return "demo_guest_patient", {"patient_id": "demo_guest_patient"}
+    patient = current_patient(authorization)
+    return patient["_id"], {"$or": [{"patient_id": patient["_id"]}, {"patient_id": str(patient["_id"])}]}
 
 @router.get("")
 def get_medical_records(authorization: str | None = Header(default=None)):

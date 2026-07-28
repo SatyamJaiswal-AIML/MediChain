@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.hospitals import router as hospitals_router
@@ -40,9 +39,10 @@ app.include_router(realtime_router)
 app.include_router(auth_router)
 app.include_router(appointments_router)
 app.include_router(disease_prediction_router)
-app.include_router(notifications_router)
-app.include_router(reminders_router)
-app.include_router(medical_records_router)
+# These three are fetched by the frontend under /api/*
+app.include_router(notifications_router, prefix="/api")
+app.include_router(reminders_router, prefix="/api")
+app.include_router(medical_records_router, prefix="/api")
 
 
 

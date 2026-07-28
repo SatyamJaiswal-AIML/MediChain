@@ -185,21 +185,19 @@ export async function getRecentMedicalHistory(
   limit: number = 3
 ): Promise<MedicalHistoryEntry[]> {
   const records = await fetchMedicalRecords();
-  if (records && Array.isArray(records) && records.length > 0) {
+  if (records && Array.isArray(records)) {
     const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
     return sorted.slice(0, limit);
   }
-  const sorted = [...MOCK_HISTORY].sort((a, b) => b.date.localeCompare(a.date));
-  return sorted.slice(0, limit);
+  return [];
 }
 
 export async function getFullMedicalHistory(_patientId: string): Promise<MedicalHistoryEntry[]> {
   const records = await fetchMedicalRecords();
-  if (records && Array.isArray(records) && records.length > 0) {
+  if (records && Array.isArray(records)) {
     return [...records].sort((a, b) => b.date.localeCompare(a.date));
   }
-  const sorted = [...MOCK_HISTORY].sort((a, b) => b.date.localeCompare(a.date));
-  return sorted;
+  return [];
 }
 
 
