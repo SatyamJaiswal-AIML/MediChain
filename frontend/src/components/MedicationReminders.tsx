@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   fetchReminders,
   createReminder,
@@ -8,9 +9,8 @@ import {
 } from '../services/reminderApi';
 import './MedicationReminders.css';
 
-const LOCAL_STORAGE_KEY = 'medichain_medication_reminders_fallback';
-
 export default function MedicationReminders() {
+  const { user } = useAuth();
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -20,6 +20,8 @@ export default function MedicationReminders() {
   const [newDate, setNewDate] = useState(todayStr);
   const [newTime, setNewTime] = useState('09:00');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const localStorageKey = `medichain_reminders_${user?.id || 'guest'}`;
 
   const loadData = async () => {
     try {
@@ -34,7 +36,7 @@ export default function MedicationReminders() {
     }
 
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const saved = localStorage.getItem(localStorageKey);
       if (saved) {
         setReminders(JSON.parse(saved));
       } else {
@@ -54,11 +56,11 @@ export default function MedicationReminders() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.id]);
 
   const saveFallbackLocally = (items: ReminderItem[]) => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(localStorageKey, JSON.stringify(items));
     } catch {
       // ignore
     }
@@ -81,7 +83,6 @@ export default function MedicationReminders() {
   };
 
   const toggle = async (id: string) => {
-    // Try MongoDB update
     const updated = await toggleReminderApi(id);
     if (updated) {
       if (updated.done) showToast(`✅ ${updated.medicine} marked as taken!`);
@@ -89,7 +90,6 @@ export default function MedicationReminders() {
       return;
     }
 
-    // Local state fallback
     setReminders((prev) => {
       const next = prev.map((r) => {
         if (r.id === id) {
@@ -119,7 +119,6 @@ export default function MedicationReminders() {
       return;
     }
 
-    // Fallback local creation if guest/not logged in
     const newItem: ReminderItem = {
       id: `local-${Date.now()}`,
       medicine: newMedicine.trim(),
@@ -148,7 +147,6 @@ export default function MedicationReminders() {
       return;
     }
 
-    // Local fallback delete
     setReminders((prev) => {
       const updated = prev.filter((r) => r.id !== id);
       saveFallbackLocally(updated);
@@ -192,7 +190,7 @@ export default function MedicationReminders() {
         </div>
       )}
 
-      {/* Add New Medicine Form with Date & Time Pickers */}
+      {/* Add New Medicine Form */}
       {showAddForm && (
         <form onSubmit={handleAddMedicine} className="med-reminders__add-form">
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Medicine Name & Dosage:</label>

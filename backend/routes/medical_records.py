@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from bson import ObjectId
 
 from database.mongodb import get_database
@@ -10,12 +10,12 @@ from routes.auth import current_patient
 router = APIRouter(prefix="/medical-records", tags=["medical-records"])
 
 class MedicalRecordCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    type: str = Field(default="Consultation")
-    doctor: str = Field(min_length=1, max_length=150)
-    hospital: str = Field(min_length=1, max_length=150)
-    date: str = Field(min_length=4, max_length=20)
-    summary: str = Field(min_length=1, max_length=2000)
+    title: str
+    type: Optional[str] = "Consultation"
+    doctor: Optional[str] = "Attending Physician"
+    hospital: Optional[str] = "Hospital Network"
+    date: Optional[str] = ""
+    summary: Optional[str] = ""
     labValues: Optional[List[Dict[str, Any]]] = []
     prescriptionItems: Optional[List[Dict[str, Any]]] = []
 
@@ -85,14 +85,12 @@ DEFAULT_DEMO_RECORDS = [
 
 @router.get("")
 def get_medical_records(authorization: str | None = Header(default=None)):
-    try:
-        patient = current_patient(authorization)
-    except HTTPException:
-        return DEFAULT_DEMO_RECORDS
-        
-    records = list(get_database().medical_records.find({"patient_id": patient["_id"]}).sort("date", -1))
+    patient = current_patient(authorization)
+    patient_query = {"$or": [{"patient_id": patient["_id"]}, {"patient_id": str(patient["_id"])}]}
     
-    # If new patient account has 0 records in MongoDB, seed demo medical records for them
+    records = list(get_database().medical_records.find(patient_query).sort("date", -1))
+    
+    # If this specific patient account has 0 records in MongoDB, seed demo medical records for this patient
     if len(records) == 0:
         seeded = []
         for demo in DEFAULT_DEMO_RECORDS:
@@ -118,14 +116,16 @@ def get_medical_records(authorization: str | None = Header(default=None)):
 @router.post("")
 def add_medical_record(payload: MedicalRecordCreate, authorization: str | None = Header(default=None)):
     patient = current_patient(authorization)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
     doc = {
         "patient_id": patient["_id"],
-        "title": payload.title.strip(),
-        "type": payload.type,
-        "doctor": payload.doctor.strip(),
-        "hospital": payload.hospital.strip(),
-        "date": payload.date.strip() or datetime.now().strftime("%Y-%m-%d"),
-        "summary": payload.summary.strip(),
+        "title": payload.title.strip() if payload.title else "Medical Examination",
+        "type": payload.type or "Consultation",
+        "doctor": payload.doctor.strip() if payload.doctor else "Attending Physician",
+        "hospital": payload.hospital.strip() if payload.hospital else "Hospital Network",
+        "date": payload.date.strip() if payload.date else today_str,
+        "summary": payload.summary.strip() if payload.summary else "Routine consultation notes.",
         "labValues": payload.labValues or [],
         "prescriptionItems": payload.prescriptionItems or [],
         "createdAt": datetime.now(timezone.utc)
@@ -137,11 +137,14 @@ def add_medical_record(payload: MedicalRecordCreate, authorization: str | None =
 @router.delete("/{record_id}")
 def delete_medical_record(record_id: str, authorization: str | None = Header(default=None)):
     patient = current_patient(authorization)
+    patient_query = {"$or": [{"patient_id": patient["_id"]}, {"patient_id": str(patient["_id"])}]}
+    
     try:
         oid = ObjectId(record_id)
-        get_database().medical_records.delete_one({"_id": oid, "patient_id": patient["_id"]})
+        res = get_database().medical_records.delete_one({"_id": oid, **patient_query})
+        if res.deleted_count == 0:
+            get_database().medical_records.delete_one({"title": record_id, **patient_query})
     except Exception:
-        # In case of mock string ID
-        get_database().medical_records.delete_one({"title": record_id, "patient_id": patient["_id"]})
+        get_database().medical_records.delete_one({"title": record_id, **patient_query})
         
     return {"success": True}
