@@ -10,7 +10,7 @@ from routes.auth import current_patient
 router = APIRouter(prefix="/medical-records", tags=["medical-records"])
 
 class MedicalRecordCreate(BaseModel):
-    title: str
+    title: Optional[str] = "Medical Examination"
     type: Optional[str] = "Consultation"
     doctor: Optional[str] = "Attending Physician"
     hospital: Optional[str] = "Hospital Network"
@@ -83,96 +83,87 @@ DEFAULT_DEMO_RECORDS = [
     }
 ]
 
+def get_current_pid(authorization: str | None) -> Any:
+    if authorization:
+        try:
+            patient = current_patient(authorization)
+            return patient["_id"]
+        except Exception:
+            pass
+    return "demo_guest_patient"
+
 @router.get("")
 def get_medical_records(authorization: str | None = Header(default=None)):
-    try:
-        patient = current_patient(authorization)
-        pid = patient["_id"]
-    except HTTPException:
-        pid = "guest_patient"
-        
+    pid = get_current_pid(authorization)
     db = get_database()
     patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}]}
     
     records = list(db.medical_records.find(patient_query).sort("date", -1))
-    
-    # Check if patient metadata initialized flag exists
     patient_meta = db.patient_metadata.find_one(patient_query)
     
-    # If patient has NEVER initialized demo records, seed ONCE into MongoDB
+    # If this patient has NEVER had demo records seeded, seed demo records once into MongoDB
     if not patient_meta:
         db.patient_metadata.insert_one({"patient_id": pid, "has_initialized_demo": True})
-        if len(records) == 0:
-            seeded = []
-            for demo in DEFAULT_DEMO_RECORDS:
-                doc = {
-                    "patient_id": pid,
-                    "title": demo["title"],
-                    "type": demo["type"],
-                    "doctor": demo["doctor"],
-                    "hospital": demo["hospital"],
-                    "date": demo["date"],
-                    "summary": demo["summary"],
-                    "labValues": demo.get("labValues", []),
-                    "prescriptionItems": demo.get("prescriptionItems", []),
-                    "createdAt": datetime.now(timezone.utc)
-                }
-                res = db.medical_records.insert_one(doc)
-                doc["_id"] = res.inserted_id
-                seeded.append(serialize_record(doc))
-            return seeded
-            
+        seeded = []
+        for demo in DEFAULT_DEMO_RECORDS:
+            doc = {
+                "patient_id": pid,
+                "title": demo["title"],
+                "type": demo["type"],
+                "doctor": demo["doctor"],
+                "hospital": demo["hospital"],
+                "date": demo["date"],
+                "summary": demo["summary"],
+                "labValues": demo.get("labValues", []),
+                "prescriptionItems": demo.get("prescriptionItems", []),
+                "createdAt": datetime.now(timezone.utc)
+            }
+            res = db.medical_records.insert_one(doc)
+            doc["_id"] = res.inserted_id
+            seeded.append(serialize_record(doc))
+        return seeded
+        
     return [serialize_record(r) for r in records]
 
 @router.post("")
 def add_medical_record(payload: MedicalRecordCreate, authorization: str | None = Header(default=None)):
-    try:
-        patient = current_patient(authorization)
-        pid = patient["_id"]
-    except HTTPException:
-        pid = "guest_patient"
-        
+    pid = get_current_pid(authorization)
     today_str = datetime.now().strftime("%Y-%m-%d")
+    db = get_database()
     
     doc = {
         "patient_id": pid,
-        "title": payload.title.strip() if payload.title else "Medical Examination",
+        "title": (payload.title or "Medical Examination").strip(),
         "type": payload.type or "Consultation",
-        "doctor": payload.doctor.strip() if payload.doctor else "Attending Physician",
-        "hospital": payload.hospital.strip() if payload.hospital else "Hospital Network",
-        "date": payload.date.strip() if payload.date else today_str,
-        "summary": payload.summary.strip() if payload.summary else "Routine consultation notes.",
+        "doctor": (payload.doctor or "Attending Physician").strip(),
+        "hospital": (payload.hospital or "Hospital Network").strip(),
+        "date": (payload.date or today_str).strip(),
+        "summary": (payload.summary or "Routine consultation notes.").strip(),
         "labValues": payload.labValues or [],
         "prescriptionItems": payload.prescriptionItems or [],
         "createdAt": datetime.now(timezone.utc)
     }
-    res = get_database().medical_records.insert_one(doc)
+    res = db.medical_records.insert_one(doc)
     doc["_id"] = res.inserted_id
     
-    # Ensure patient metadata exists
     patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}]}
-    get_database().patient_metadata.update_one(patient_query, {"$set": {"has_initialized_demo": True}}, upsert=True)
+    db.patient_metadata.update_one(patient_query, {"$set": {"has_initialized_demo": True}}, upsert=True)
     
     return serialize_record(doc)
 
 @router.delete("/{record_id}")
 def delete_medical_record(record_id: str, authorization: str | None = Header(default=None)):
-    try:
-        patient = current_patient(authorization)
-        pid = patient["_id"]
-    except HTTPException:
-        pid = "guest_patient"
-        
+    pid = get_current_pid(authorization)
     db = get_database()
     patient_query = {"$or": [{"patient_id": pid}, {"patient_id": str(pid)}]}
     
-    # Mark metadata as initialized so empty list doesn't re-seed
     db.patient_metadata.update_one(patient_query, {"$set": {"has_initialized_demo": True}}, upsert=True)
     
     try:
         oid = ObjectId(record_id)
         db.medical_records.delete_one({"_id": oid})
     except Exception:
+        db.medical_records.delete_one({"id": record_id})
         db.medical_records.delete_one({"title": record_id})
         
     return {"success": True}

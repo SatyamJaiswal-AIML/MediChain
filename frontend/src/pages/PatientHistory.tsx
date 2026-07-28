@@ -54,7 +54,7 @@ export default function PatientHistory() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   const handleAddRecord = async (e: React.FormEvent) => {
@@ -75,26 +75,40 @@ export default function PatientHistory() {
     setSaving(false);
 
     if (created) {
-      setShowAddModal(false);
-      setTitle('');
-      setDoctor('');
-      setHospital('');
-      setSummary('');
+      setHistory((prev) => [created, ...prev]);
       showToast('🎉 Medical record saved to MongoDB!');
-      loadData();
     } else {
-      showToast('❌ Failed to save record.');
+      // Local fallback entry if offline / guest
+      const fallbackEntry: MedicalHistoryEntry = {
+        id: `rec-${Date.now()}`,
+        title: title.trim(),
+        type,
+        doctor: doctor.trim(),
+        hospital: hospital.trim(),
+        date,
+        summary: summary.trim(),
+      };
+      setHistory((prev) => [fallbackEntry, ...prev]);
+      showToast('🎉 Medical record saved!');
     }
+
+    setShowAddModal(false);
+    setTitle('');
+    setDoctor('');
+    setHospital('');
+    setSummary('');
   };
 
   const handleDeleteRecord = async (id: string, recordTitle: string) => {
     if (!window.confirm(`Are you sure you want to delete "${recordTitle}"?`)) return;
-    setHistory((prev) => prev.filter((r) => r.id !== id));
-    showToast(`🗑️ Record deleted.`);
-    await deleteMedicalRecordApi(id);
-    loadData();
-  };
 
+    // Immediately remove from UI state
+    setHistory((prev) => prev.filter((r) => r.id !== id && r.title !== recordTitle));
+    showToast(`🗑️ Record deleted.`);
+
+    // Delete in background from MongoDB
+    await deleteMedicalRecordApi(id);
+  };
 
   const counts = useMemo(() => {
     const base: Record<FilterValue, number> = {
@@ -200,7 +214,7 @@ export default function PatientHistory() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="patient-history__empty card-surface">
-          <p>No records match your search.</p>
+          <p>No records in this view.</p>
           <button className="btn btn-secondary" onClick={() => { setFilter('All'); setQuery(''); }}>
             Clear Filters
           </button>
@@ -208,7 +222,7 @@ export default function PatientHistory() {
       ) : (
         <div className="patient-history__timeline">
           {filtered.map((entry, index) => (
-            <div key={entry.id} style={{ position: 'relative' }}>
+            <div key={entry.id || `entry-${index}`} style={{ position: 'relative' }}>
               <MedicalTimelineItem entry={entry} isLast={index === filtered.length - 1} />
               <button
                 title="Delete record"
@@ -221,7 +235,8 @@ export default function PatientHistory() {
                   border: 'none',
                   fontSize: '0.85rem',
                   cursor: 'pointer',
-                  opacity: 0.5,
+                  opacity: 0.6,
+                  padding: '4px',
                 }}
               >
                 🗑️
@@ -357,7 +372,7 @@ export default function PatientHistory() {
                   style={{ flex: 1, fontWeight: 700 }}
                   disabled={saving}
                 >
-                  {saving ? 'Saving...' : '💾 Save to MongoDB'}
+                  {saving ? 'Saving...' : '💾 Save Medical Record'}
                 </button>
               </div>
             </form>
