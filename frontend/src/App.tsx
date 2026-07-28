@@ -10,6 +10,7 @@ import AppointmentStatus from './pages/AppointmentStatus';
 import PatientHistory from './pages/PatientHistory';
 import HospitalDirectory from './pages/HospitalDirectory';
 import PatientTransfer from './pages/PatientTransfer';
+import DiseasePredictor from './pages/DiseasePredictor';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import HospitalLogin from './pages/HospitalLogin.jsx';
 import './App.css';
@@ -32,6 +33,15 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/disease-predictor"
+          element={
+            <ProtectedRoute>
+              <PatientLayout title="AI Disease Predictor"><DiseasePredictor /></PatientLayout>
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/profile"
           element={

@@ -6,6 +6,7 @@ from routes.realtime import router as realtime_router
 from routes.transfers import router as transfers_router
 from routes.auth import router as auth_router
 from routes.appointments import router as appointments_router
+from routes.disease_prediction import router as disease_prediction_router
 
 
 app = FastAPI(
@@ -34,6 +35,7 @@ app.include_router(transfers_router)
 app.include_router(realtime_router)
 app.include_router(auth_router)
 app.include_router(appointments_router)
+app.include_router(disease_prediction_router)
 
 
 @app.get("/")

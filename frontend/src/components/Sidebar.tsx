@@ -46,10 +46,18 @@ const ICONS = {
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
     </svg>
   ),
+  ai_predictor: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
+      <path d="M12 6v6l4 2" />
+      <path d="M9.5 9h5M9.5 15h5" />
+    </svg>
+  ),
 };
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: ICONS.dashboard },
+  { label: 'AI Disease Predictor', path: '/disease-predictor', icon: ICONS.ai_predictor },
   { label: 'My Profile', path: '/profile', icon: ICONS.profile },
   { label: 'Book Appointment', path: '/book-appointment', icon: ICONS.book },
   { label: 'Appointment Status', path: '/appointment-status', icon: ICONS.status },
@@ -83,7 +91,7 @@ export default function Sidebar({ onLogout, collapsed, onToggleCollapse }: Sideb
 
       <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''} ${mobileOpen ? 'sidebar--mobile-open' : ''}`}>
         <div className="sidebar__brand">
-          <div className="sidebar__brand-mark">M</div>
+          <img src="/logo.png" alt="MediChain Logo" className="sidebar__brand-logo" />
           {!collapsed && (
             <div className="sidebar__brand-text">
               <span className="sidebar__brand-name">MediChain</span>
@@ -91,6 +99,7 @@ export default function Sidebar({ onLogout, collapsed, onToggleCollapse }: Sideb
             </div>
           )}
         </div>
+
 
         <nav className="sidebar__nav">
           {NAV_ITEMS.map((item) => (

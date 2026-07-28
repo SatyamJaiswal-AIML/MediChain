@@ -34,13 +34,14 @@ export default function Login() {
       <div className="login__ambient login__ambient--2" />
 
       <div className="login__panel glass-panel fade-in-up">
-        <div className="login__brand">
-          <div className="login__brand-mark">M</div>
+        <div className="login__brand" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.5rem' }}>
+          <img src="/logo.png" alt="MediChain Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', background: '#ffffff', borderRadius: '10px', padding: '4px 10px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
           <div>
-            <h1 className="login__brand-name">MediChain</h1>
-            <p className="login__brand-tag mono">PATIENT PORTAL</p>
+            <h1 className="login__brand-name" style={{ margin: 0, fontSize: '1.5rem' }}>MediChain</h1>
+            <p className="login__brand-tag mono" style={{ margin: 0 }}>PATIENT PORTAL</p>
           </div>
         </div>
+
 
         <h2 className="login__heading">{isRegistering ? 'Create your patient account' : 'Welcome back'}</h2>
         <p className="login__subheading">{isRegistering ? 'Register once to save appointments and transfer requests.' : 'Sign in to manage your appointments and health records.'}</p>

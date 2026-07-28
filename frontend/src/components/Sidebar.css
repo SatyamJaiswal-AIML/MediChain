@@ -41,6 +41,18 @@
   box-shadow: var(--shadow-glow-teal);
 }
 
+.sidebar__brand-logo {
+  height: 38px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 3px 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+
 .sidebar__brand-text {
   display: flex;
   flex-direction: column;

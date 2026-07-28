@@ -3,3 +3,8 @@ pymongo
 python-dotenv
 uvicorn[standard]
 email-validator
+scikit-learn
+pandas
+numpy
+joblib
+
