@@ -39,10 +39,6 @@ export default function PatientHistory() {
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const userKey = user?.id || 'guest';
-  const ADDED_KEY = `medichain_added_records_${userKey}`;
-  const DELETED_KEY = `medichain_deleted_records_${userKey}`;
-
   const loadData = async () => {
     if (!user) return;
     try {
@@ -51,22 +47,10 @@ export default function PatientHistory() {
         getPatientProfile(user.id),
       ]);
 
-      const localAdded: MedicalHistoryEntry[] = JSON.parse(
-        localStorage.getItem(ADDED_KEY) || '[]'
-      );
-      const localDeleted: string[] = JSON.parse(
-        localStorage.getItem(DELETED_KEY) || '[]'
-      );
+      // Sort data-wise (newest date first)
+      const sorted = [...baseRecords].sort((a, b) => b.date.localeCompare(a.date));
 
-      const combinedMap = new Map<string, MedicalHistoryEntry>();
-      baseRecords.forEach((r) => combinedMap.set(r.id, r));
-      localAdded.forEach((r) => combinedMap.set(r.id, r));
-
-      const finalHistory = Array.from(combinedMap.values()).filter(
-        (r) => !localDeleted.includes(r.id) && !localDeleted.includes(r.title)
-      );
-
-      setHistory(finalHistory);
+      setHistory(sorted);
       setProfile(p);
     } catch (err) {
       console.error('Error loading patient history:', err);
@@ -108,21 +92,15 @@ export default function PatientHistory() {
       summary: summary.trim(),
     };
 
-    // Try MongoDB saving
+    // Save to MongoDB API for cross-device cloud sync
     const created = await createMedicalRecord(payload);
     const recordToSave = created || newRecord;
 
-    // Save to local storage for permanent reload persistence
-    try {
-      const existingAdded: MedicalHistoryEntry[] = JSON.parse(
-        localStorage.getItem(ADDED_KEY) || '[]'
-      );
-      localStorage.setItem(ADDED_KEY, JSON.stringify([recordToSave, ...existingAdded]));
-    } catch {
-      // ignore
-    }
+    setHistory((prev) => {
+      const updated = [recordToSave, ...prev];
+      return updated.sort((a, b) => b.date.localeCompare(a.date));
+    });
 
-    setHistory((prev) => [recordToSave, ...prev]);
     setSaving(false);
     setShowAddModal(false);
     setTitle('');
@@ -130,30 +108,20 @@ export default function PatientHistory() {
     setHospital('');
     setSummary('');
 
-    showToast('🎉 Medical record saved!');
+    showToast('🎉 Medical record saved & synced to MongoDB!');
+    loadData();
   };
 
   const handleDeleteRecord = async (id: string, recordTitle: string) => {
     if (!window.confirm(`Are you sure you want to delete "${recordTitle}"?`)) return;
 
-    // 1. Immediately remove from local state
+    // 1. Immediately remove from state
     setHistory((prev) => prev.filter((r) => r.id !== id && r.title !== recordTitle));
     showToast(`🗑️ Record deleted.`);
 
-    // 2. Add to local deleted storage for permanent persistence
-    try {
-      const existingDeleted: string[] = JSON.parse(
-        localStorage.getItem(DELETED_KEY) || '[]'
-      );
-      if (!existingDeleted.includes(id)) existingDeleted.push(id);
-      if (!existingDeleted.includes(recordTitle)) existingDeleted.push(recordTitle);
-      localStorage.setItem(DELETED_KEY, JSON.stringify(existingDeleted));
-    } catch {
-      // ignore
-    }
-
-    // 3. Delete from MongoDB API
+    // 2. Delete from MongoDB API
     await deleteMedicalRecordApi(id);
+    loadData();
   };
 
   const counts = useMemo(() => {
@@ -181,7 +149,8 @@ export default function PatientHistory() {
           h.hospital.toLowerCase().includes(q)
       );
     }
-    return results;
+    // Always maintain date-wise descending order
+    return [...results].sort((a, b) => b.date.localeCompare(a.date));
   }, [history, filter, query]);
 
   return (
