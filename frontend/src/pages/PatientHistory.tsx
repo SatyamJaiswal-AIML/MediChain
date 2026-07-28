@@ -89,12 +89,12 @@ export default function PatientHistory() {
 
   const handleDeleteRecord = async (id: string, recordTitle: string) => {
     if (!window.confirm(`Are you sure you want to delete "${recordTitle}"?`)) return;
-    const ok = await deleteMedicalRecordApi(id);
-    if (ok) {
-      showToast(`🗑️ Record deleted.`);
-      loadData();
-    }
+    setHistory((prev) => prev.filter((r) => r.id !== id));
+    showToast(`🗑️ Record deleted.`);
+    await deleteMedicalRecordApi(id);
+    loadData();
   };
+
 
   const counts = useMemo(() => {
     const base: Record<FilterValue, number> = {

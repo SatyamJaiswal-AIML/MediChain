@@ -3,7 +3,10 @@ import type { MedicalHistoryEntry } from './patient';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('medichain_patient_token');
+  const token =
+    localStorage.getItem('medichain_token') ||
+    localStorage.getItem('medichain_patient_token');
+
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -41,7 +44,11 @@ export async function createMedicalRecord(payload: NewMedicalRecordPayload): Pro
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('Server error creating record:', errBody);
+      return null;
+    }
     return await res.json();
   } catch (err) {
     console.error('Failed to create medical record:', err);
