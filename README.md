@@ -22,10 +22,13 @@
 
 - ✅ MongoDB-backed patient registration & login
 - ✅ Persistent patient profile
-- ✅ Browse hospitals with live bed availability
-- ✅ Book appointments
+- ✅ **🤖 AI Disease Predictor** — Real-time Machine Learning diagnostic predictions based on 377 medical symptoms & 773 disease classes
+- ✅ **💬 Multilingual Symptom Extraction** — Type symptoms in natural language (English, Hindi, Spanish, etc.) to auto-detect symptom tags
+- ✅ Browse hospitals with live bed availability (ICU, Emergency, Oxygen, General)
+- ✅ Book appointments with pre-filled AI diagnosis
 - ✅ Track appointment status
 - ✅ Submit hospital transfer requests
+- ✅ Interactive navbar notifications
 
 **Appointment Status**
 - 🟡 Pending
@@ -50,15 +53,17 @@ Accessible via **`/hospital-login`**
 
 ---
 
-## ⚡ Real-Time Updates
+## ⚡ Real-Time Updates & AI Engine
 
-Powered by **Native WebSockets**
+Powered by **Native WebSockets** & **Scikit-Learn ML**
 
-| Event | Description |
+| Feature | Description |
 |-------|-------------|
-| `bed_update` | Live bed availability |
+| `bed_update` | Live bed availability updates |
 | `transfer_request` | New transfer request |
 | `transfer_response` | Accepted / Declined transfer |
+| `disease-prediction` | Multi-class Naive Bayes & Symptom Frequency scoring |
+| `extract-symptoms` | Multilingual free-text NLP symptom mapping |
 
 ---
 
@@ -67,6 +72,7 @@ Powered by **Native WebSockets**
 | Layer | Technology |
 |------|------------|
 | Backend | Python • FastAPI • Pydantic |
+| Machine Learning | Scikit-Learn • Pandas • NumPy • Joblib |
 | Database | MongoDB + PyMongo |
 | Frontend | React • Vite • TypeScript • JavaScript |
 | Real-time | Native WebSockets |
@@ -81,17 +87,19 @@ MediChain/
 ├── backend/
 │   ├── database/
 │   ├── models/
-│   ├── routes/
+│   ├── models_ml/           # Serialized ML model & symptom lookups
+│   ├── routes/              # API routes (disease_prediction, transfers, etc.)
 │   ├── realtime/
-│   ├── scripts/
+│   ├── scripts/             # Model training & DB seeding scripts
 │   ├── main.py
 │   └── requirements.txt
 │
 ├── frontend/
+│   ├── public/              # Assets & MediChain Logos
 │   ├── src/
 │   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
+│   │   ├── pages/           # DiseasePredictor, HospitalDirectory, etc.
+│   │   ├── services/        # diseaseApi, hospital, api.js
 │   │   ├── context/
 │   │   └── websocket/
 │   └── package.json
@@ -127,10 +135,11 @@ MONGO_URI=your_mongodb_connection_string
 DATABASE_NAME=hospital_network
 ```
 
-Seed hospitals:
+Seed hospitals & train ML model (optional, pre-trained model included):
 
 ```bash
 python -m scripts.seed_hospitals
+python -m scripts.train_disease_model
 ```
 
 Run backend:
@@ -195,10 +204,11 @@ Redirects to:
 |------|-------------|
 | `/login` | Patient Login |
 | `/dashboard` | Patient Dashboard |
+| `/disease-predictor` | **🤖 AI Disease Predictor & Symptom Analysis** |
 | `/profile` | Patient Profile |
 | `/book-appointment` | Book Appointment |
 | `/appointment-status` | Appointment Status |
-| `/hospitals` | Hospital Directory |
+| `/hospitals` | Hospital Directory & Live Bed Availability |
 | `/transfer` | Transfer Request |
 | `/hospital-login` | Hospital Login |
 | `/admin` | Hospital Dashboard |
@@ -227,6 +237,7 @@ Creates demo hospitals and hospital login accounts.
 | Appointments | MongoDB |
 | Transfers | MongoDB |
 | Hospital Sessions | MongoDB |
+| ML Disease Model | Serialized Joblib (`backend/models_ml/`) |
 
 ---
 
@@ -250,7 +261,7 @@ Creates demo hospitals and hospital login accounts.
 ---
 
 <p align="center">
-Made with ❤️ using FastAPI, React, MongoDB and WebSockets.
+Made with ❤️ using FastAPI, React, MongoDB, Scikit-Learn and WebSockets.
 </p>
 
 
@@ -258,13 +269,14 @@ Made with ❤️ using FastAPI, React, MongoDB and WebSockets.
 
 # 🧑‍🤝‍🧑 Team & Contributors
 
-Built by a **3-person team** using a **vertical ownership model**, where each member owned a feature end-to-end (backend + frontend).
+Built by a **3-person team** using a **vertical ownership model**, where each member owned key features end-to-end (backend + ML + frontend).
 
 | Contributor | Responsibilities |
 |-------------|------------------|
-| **Suraj Sharma** | 🛏️ Bed System & Shared Backend Foundation — Hospital data management, WebSocket connection manager, live bed controller, backend foundation |
-| **Satyam Jaiswal** | 🚑 Emergency Transfer System — transfer request workflow, live accept/decline functionality, patient record viewer, Hospital Login UI, and integration of backend and frontend modules across the application |
-| **Sajal Vaish** | 💻 Patient-facing frontend — Login, Dashboard, Profile, Hospital Directory, Appointment Booking, Appointment Status, Hospital Location Tracking, and UI development |
+| **Satyam Jaiswal** | 🤖 **AI Disease Prediction & Emergency System Owner** — Preprocessed dataset (246K rows, 773 disease classes, 377 symptoms), trained & optimized `MultinomialNB` model (85.75%–89.26% accuracy), built backend prediction & multilingual NLP extraction APIs (`/api/predict-disease`, `/api/extract-symptoms`), designed interactive frontend `DiseasePredictor` UI, implemented 🚑 Emergency Transfer System workflow & Hospital Login UI, added live bed counts in directory cards, interactive navbar notifications, and cleaned MediChain logo branding. |
+| **Suraj Sharma** | 🛏️ **Bed System & Shared Backend Foundation** — Hospital data management, WebSocket connection manager, live bed controller, backend foundation. |
+| **Sajal Vaish** | 💻 **Patient-facing frontend** — Login, Dashboard, Profile, Hospital Directory, Appointment Booking, Appointment Status, Hospital Location Tracking, and UI development. |
+
 
 ---
 
