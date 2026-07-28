@@ -11,7 +11,8 @@ router = APIRouter(prefix="/reminders", tags=["reminders"])
 
 class ReminderCreate(BaseModel):
     medicine: str = Field(min_length=1, max_length=200)
-    time: str = Field(min_length=1, max_length=50)
+    date: Optional[str] = ""
+    time: Optional[str] = "09:00 AM"
 
 def serialize_reminder(item: dict) -> dict:
     item["id"] = str(item.pop("_id"))
@@ -22,22 +23,28 @@ def serialize_reminder(item: dict) -> dict:
 
 @router.get("")
 def list_reminders(authorization: str | None = Header(default=None)):
-    patient = current_patient(authorization)
+    try:
+        patient = current_patient(authorization)
+    except HTTPException:
+        return []
+        
     records = get_database().medication_reminders.find({"patient_id": patient["_id"]}).sort("createdAt", -1)
     results = [serialize_reminder(r) for r in records]
     
-    # If new patient with 0 reminders, seed initial default reminders
+    # Seed default initial reminders for new patients
     if len(results) == 0:
+        today_str = datetime.now().strftime("%Y-%m-%d")
         default_items = [
-            {"medicine": "Cetirizine 10mg", "time": "9:00 PM", "done": False},
-            {"medicine": "Multivitamin", "time": "8:00 AM", "done": True},
-            {"medicine": "Fluticasone Nasal Spray", "time": "9:30 PM", "done": False},
+            {"medicine": "Cetirizine 10mg", "date": today_str, "time": "09:00 PM", "done": False},
+            {"medicine": "Multivitamin", "date": today_str, "time": "08:00 AM", "done": True},
+            {"medicine": "Fluticasone Nasal Spray", "date": today_str, "time": "09:30 PM", "done": False},
         ]
         seeded = []
         for item in default_items:
             doc = {
                 "patient_id": patient["_id"],
                 "medicine": item["medicine"],
+                "date": item["date"],
                 "time": item["time"],
                 "done": item["done"],
                 "createdAt": datetime.now(timezone.utc)
@@ -52,10 +59,13 @@ def list_reminders(authorization: str | None = Header(default=None)):
 @router.post("")
 def create_reminder(payload: ReminderCreate, authorization: str | None = Header(default=None)):
     patient = current_patient(authorization)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
     doc = {
         "patient_id": patient["_id"],
         "medicine": payload.medicine.strip(),
-        "time": payload.time.strip(),
+        "date": payload.date.strip() if payload.date else today_str,
+        "time": payload.time.strip() if payload.time else "09:00 AM",
         "done": False,
         "createdAt": datetime.now(timezone.utc)
     }

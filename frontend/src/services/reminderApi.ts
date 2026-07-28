@@ -12,6 +12,7 @@ export interface ReminderItem {
   id: string;
   patient_id?: string;
   medicine: string;
+  date?: string;
   time: string;
   done: boolean;
   createdAt?: string;
@@ -30,12 +31,12 @@ export async function fetchReminders(): Promise<ReminderItem[]> {
   }
 }
 
-export async function createReminder(medicine: string, time: string): Promise<ReminderItem | null> {
+export async function createReminder(medicine: string, date: string, time: string): Promise<ReminderItem | null> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/reminders`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ medicine, time }),
+      body: JSON.stringify({ medicine, date, time }),
     });
     if (!res.ok) return null;
     return await res.json();
