@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.hospitals import router as hospitals_router
@@ -7,6 +8,8 @@ from routes.transfers import router as transfers_router
 from routes.auth import router as auth_router
 from routes.appointments import router as appointments_router
 from routes.disease_prediction import router as disease_prediction_router
+from routes.notifications import router as notifications_router
+from routes.reminders import router as reminders_router
 
 
 app = FastAPI(
@@ -36,6 +39,8 @@ app.include_router(realtime_router)
 app.include_router(auth_router)
 app.include_router(appointments_router)
 app.include_router(disease_prediction_router)
+app.include_router(notifications_router)
+app.include_router(reminders_router)
 
 
 @app.get("/")

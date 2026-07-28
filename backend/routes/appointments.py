@@ -80,4 +80,17 @@ def decide_appointment(appointment_id: str, payload: AppointmentDecision, author
         raise HTTPException(409, "This appointment has already been processed.")
     get_database().appointments.update_one({"_id": oid}, {"$set": {"status": payload.status}})
     appointment["status"] = payload.status
+
+    # Trigger live notification to patient
+    from routes.notifications import create_patient_notification
+    status_icon = "🟢" if payload.status == "Confirmed" else "🔴"
+    notif_type = "success" if payload.status == "Confirmed" else "alert"
+    create_patient_notification(
+        patient_id=appointment["patient_id"],
+        title=f"Appointment {payload.status} {status_icon}",
+        message=f"{appointment.get('hospitalName', 'Hospital')} has {payload.status.lower()} your appointment with {appointment.get('doctorName', 'doctor')} for {appointment.get('date', '')} at {appointment.get('time', '')}.",
+        notif_type=notif_type
+    )
+
     return serialize(appointment)
+

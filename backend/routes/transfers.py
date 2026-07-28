@@ -54,9 +54,22 @@ async def respond_transfer(transfer_id: str, payload: TransferResponseRequest, a
     if payload.status == "accepted":
         update_patient_hospital(transfer["patient_id"], transfer["to_hospital"])
 
+    # Trigger live notification to patient
+    from routes.notifications import create_patient_notification
+    status_title = "Accepted" if payload.status == "accepted" else "Declined"
+    status_icon = "🟢" if payload.status == "accepted" else "🔴"
+    notif_type = "success" if payload.status == "accepted" else "alert"
+    create_patient_notification(
+        patient_id=transfer["patient_id"],
+        title=f"Emergency Transfer {status_title} {status_icon}",
+        message=f"{transfer.get('to_hospital', 'Hospital')} has {payload.status} your emergency transfer request from {transfer.get('from_hospital', 'hospital')}.",
+        notif_type=notif_type
+    )
+
     event = TransferResponseEvent(transfer_id=transfer_id, status=payload.status)
     await manager.broadcast(event.model_dump())
     return {"status": "success"}
+
 
 
 @router.get("/patients")

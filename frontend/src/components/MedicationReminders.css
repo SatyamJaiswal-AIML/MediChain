@@ -24,6 +24,32 @@
   border-radius: var(--radius-full);
 }
 
+.med-reminders__add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.med-form-input {
+  width: 100%;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.82rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  outline: none;
+  font-family: inherit;
+}
+
+.med-form-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
 .med-reminders__list {
   display: flex;
   flex-direction: column;
@@ -39,6 +65,8 @@
   border-radius: var(--radius-sm);
   text-align: left;
   transition: all var(--transition-fast);
+  background: transparent;
+  border: none;
 }
 
 .med-reminders__item:hover {
@@ -84,4 +112,20 @@
 .med-reminders__time {
   font-size: 0.72rem;
   color: var(--color-text-tertiary);
+}
+
+.med-delete-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.med-delete-btn:hover {
+  opacity: 1;
+  background: #fee2e2;
 }

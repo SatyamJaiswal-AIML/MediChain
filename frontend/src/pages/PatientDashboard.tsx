@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getHealthSummary, getRecentMedicalHistory, type HealthMetric, type MedicalHistoryEntry } from '../services/patient';
 import { getUpcomingAppointment, type Appointment } from '../services/appointment';
@@ -7,12 +8,24 @@ import DashboardCard from '../components/DashboardCard';
 import QuickActionCard from '../components/QuickActionCard';
 import AppointmentCard from '../components/AppointmentCard';
 import HospitalCard from '../components/HospitalCard';
+import HospitalDetailModal from '../components/HospitalDetailModal';
 import HealthScoreRing from '../components/HealthScoreRing';
 import MedicationReminders from '../components/MedicationReminders';
 import FloatingAIButton from '../components/FloatingAIButton';
 import './PatientDashboard.css';
 
 const QUICK_ACTIONS = [
+  {
+    label: 'AI Symptom Checker',
+    description: 'Predict conditions from symptoms',
+    path: '/disease-predictor',
+    accent: 'violet' as const,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 12 16zm1-5.5a1 1 0 0 0-2 0v-4a1 1 0 0 0 2 0z" />
+      </svg>
+    ),
+  },
   {
     label: 'Book Appointment',
     description: 'Schedule a visit with a doctor',
@@ -26,9 +39,9 @@ const QUICK_ACTIONS = [
   },
   {
     label: 'Find a Hospital',
-    description: 'Browse hospitals near you',
+    description: 'Browse live bed availability',
     path: '/hospitals',
-    accent: 'violet' as const,
+    accent: 'amber' as const,
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M4 21V8l8-5 8 5v13" /><path d="M9 21v-6h6v6" />
@@ -36,24 +49,13 @@ const QUICK_ACTIONS = [
     ),
   },
   {
-    label: 'Medical History',
-    description: 'View reports & prescriptions',
-    path: '/medical-history',
-    accent: 'amber' as const,
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M4 12a8 8 0 1 0 3-6.3" /><path d="M4 4v5h5" /><path d="M12 8v4l3 2" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Update Profile',
-    description: 'Keep your health record current',
-    path: '/profile',
+    label: 'Emergency Transfer',
+    description: 'Request urgent bed transfer',
+    path: '/transfer',
     accent: 'coral' as const,
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
       </svg>
     ),
   },
@@ -68,10 +70,12 @@ const HISTORY_TYPE_COLOR: Record<MedicalHistoryEntry['type'], string> = {
 
 export default function PatientDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [history, setHistory] = useState<MedicalHistoryEntry[]>([]);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -99,14 +103,14 @@ export default function PatientDashboard() {
 
   return (
     <div className="dashboard">
-      {/* Welcome Banner — signature animated hero */}
+      {/* 1. Hero Welcome Banner */}
       <section className="welcome-banner fade-in-up">
         <span className="welcome-banner__orb welcome-banner__orb--1" />
         <span className="welcome-banner__orb welcome-banner__orb--2" />
 
         <div className="welcome-banner__text">
           <h2>Welcome back, {firstName} 👋</h2>
-          <p>Here's what's happening with your health today.</p>
+          <p>Your unified health monitoring & hospital network portal.</p>
         </div>
 
         <svg className="welcome-banner__ekg" viewBox="0 0 300 60" preserveAspectRatio="none">
@@ -123,10 +127,58 @@ export default function PatientDashboard() {
         </div>
       </section>
 
-      {/* Health Summary */}
+      {/* 2. Featured AI Disease Predictor Banner */}
+      <section
+        className="card-surface fade-in-up"
+        style={{
+          background: 'linear-gradient(135deg, #312e81 0%, #4338ca 50%, #6366f1 100%)',
+          color: '#ffffff',
+          borderRadius: '16px',
+          padding: '1.25rem 1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          boxShadow: '0 10px 25px -5px rgba(67, 56, 202, 0.4)',
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700 }}>
+              NEW FEATURE
+            </span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.9 }}>🤖 AI Disease Predictor</span>
+          </div>
+          <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.2rem', color: '#ffffff' }}>
+            Feeling unwell? Describe your symptoms in any language!
+          </h3>
+          <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.85 }}>
+            Our ML model analyzes 377 symptoms across 773 condition profiles to give instant diagnostic suggestions.
+          </p>
+        </div>
+        <button
+          className="btn"
+          style={{
+            background: '#ffffff',
+            color: '#4338ca',
+            fontWeight: 700,
+            padding: '0.65rem 1.2rem',
+            borderRadius: '10px',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}
+          onClick={() => navigate('/disease-predictor')}
+        >
+          ⚡ Analyze Symptoms Now →
+        </button>
+      </section>
+
+      {/* 3. Core Health Metrics Row */}
       <section className="dashboard__section">
         <div className="dashboard__section-header">
-          <h3>Health Summary</h3>
+          <h3>Vitals & Health Metrics</h3>
         </div>
         <div className="dashboard__metrics-grid">
           {loading
@@ -135,102 +187,111 @@ export default function PatientDashboard() {
         </div>
       </section>
 
-      {/* Health Score + Reminders */}
+      {/* 4. Rearranged Core Two-Column Layout */}
       <div className="dashboard__two-col">
-        <section className="dashboard__section">
-          <div className="dashboard__section-header">
-            <h3>Health Overview</h3>
-          </div>
-          {loading ? (
-            <div className="skeleton" style={{ height: 140, borderRadius: 'var(--radius-lg)' }} />
-          ) : (
-            <HealthScoreRing score={84} />
-          )}
-        </section>
-
-        <section className="dashboard__section">
-          <div className="dashboard__section-header">
-            <h3>Reminders</h3>
-          </div>
-          <MedicationReminders />
-        </section>
-      </div>
-
-      <div className="dashboard__two-col">
-        {/* Upcoming Appointment */}
-        <section className="dashboard__section">
-          <div className="dashboard__section-header">
-            <h3>Upcoming Appointment</h3>
-            <a href="/appointment-status" className="dashboard__section-link">View all</a>
-          </div>
-          {loading ? (
-            <div className="skeleton skeleton--card" />
-          ) : appointment ? (
-            <AppointmentCard appointment={appointment} />
-          ) : (
-            <div className="dashboard__empty card-surface">
-              <p>No upcoming appointments.</p>
-              <a href="/book-appointment" className="btn btn-primary">Book Now</a>
+        {/* Left Column: Health Score Ring + MongoDB Reminders + Quick Actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <section className="dashboard__section">
+            <div className="dashboard__section-header">
+              <h3>Health Overview</h3>
             </div>
-          )}
-        </section>
-
-        {/* Quick Actions */}
-        <section className="dashboard__section">
-          <div className="dashboard__section-header">
-            <h3>Quick Actions</h3>
-          </div>
-          <div className="dashboard__quick-actions">
-            {QUICK_ACTIONS.map((action) => (
-              <QuickActionCard key={action.label} {...action} />
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <div className="dashboard__two-col">
-        {/* Nearby Hospitals */}
-        <section className="dashboard__section">
-          <div className="dashboard__section-header">
-            <h3>Nearby Hospitals</h3>
-            <a href="/hospitals" className="dashboard__section-link">See all</a>
-          </div>
-          <div className="dashboard__hospitals-grid">
-            {loading
-              ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton skeleton--hospital" />)
-              : hospitals.map((h) => <HospitalCard key={h.id} hospital={h} variant="compact" />)}
-          </div>
-        </section>
-
-        {/* Recent Medical History */}
-        <section className="dashboard__section">
-          <div className="dashboard__section-header">
-            <h3>Recent Medical History</h3>
-            <a href="/medical-history" className="dashboard__section-link">View all</a>
-          </div>
-          <div className="dashboard__history-list card-surface">
             {loading ? (
-              <div className="skeleton skeleton--history" />
+              <div className="skeleton" style={{ height: 140, borderRadius: 'var(--radius-lg)' }} />
             ) : (
-              history.map((entry) => (
-                <a key={entry.id} href="/medical-history" className="history-row">
-                  <span className="history-row__dot" style={{ background: HISTORY_TYPE_COLOR[entry.type] }} />
-                  <div className="history-row__content">
-                    <div className="history-row__top">
-                      <span className="history-row__title">{entry.title}</span>
-                      <span className="history-row__date mono">
-                        {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      </span>
-                    </div>
-                    <p className="history-row__summary text-secondary">{entry.summary}</p>
-                    <span className="history-row__doctor">{entry.doctor} · {entry.type}</span>
-                  </div>
-                </a>
-              ))
+              <HealthScoreRing score={84} />
             )}
-          </div>
-        </section>
+          </section>
+
+          <section className="dashboard__section">
+            <div className="dashboard__section-header">
+              <h3>Medication Reminders</h3>
+              <span style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>☁️ MongoDB Synced</span>
+            </div>
+            <MedicationReminders />
+          </section>
+
+          <section className="dashboard__section">
+            <div className="dashboard__section-header">
+              <h3>Quick Shortcuts</h3>
+            </div>
+            <div className="dashboard__quick-actions">
+              {QUICK_ACTIONS.map((action) => (
+                <QuickActionCard key={action.label} {...action} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Upcoming Appointment + Nearby Hospitals */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Upcoming Appointment */}
+          <section className="dashboard__section">
+            <div className="dashboard__section-header">
+              <h3>Upcoming Appointment</h3>
+              <a href="/appointment-status" className="dashboard__section-link">View all</a>
+            </div>
+            {loading ? (
+              <div className="skeleton skeleton--card" />
+            ) : appointment ? (
+              <AppointmentCard appointment={appointment} />
+            ) : (
+              <div className="dashboard__empty card-surface">
+                <p>No upcoming appointments scheduled.</p>
+                <a href="/book-appointment" className="btn btn-primary">Book Appointment</a>
+              </div>
+            )}
+          </section>
+
+          {/* Nearby Hospitals */}
+          <section className="dashboard__section">
+            <div className="dashboard__section-header">
+              <h3>Nearby Hospitals & Live Beds</h3>
+              <a href="/hospitals" className="dashboard__section-link">Directory →</a>
+            </div>
+            <div className="dashboard__hospitals-grid">
+              {loading
+                ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton skeleton--hospital" />)
+                : hospitals.map((h) => (
+                    <HospitalCard key={h.id} hospital={h} variant="compact" onViewDetails={setSelectedHospital} />
+                  ))}
+            </div>
+          </section>
+        </div>
       </div>
+
+      {/* 5. Bottom Timeline: Recent Medical History */}
+      <section className="dashboard__section" style={{ marginTop: '0.5rem' }}>
+        <div className="dashboard__section-header">
+          <h3>Recent Medical History</h3>
+          <a href="/medical-history" className="dashboard__section-link">View all records</a>
+        </div>
+        <div className="dashboard__history-list card-surface">
+          {loading ? (
+            <div className="skeleton skeleton--history" />
+          ) : (
+            history.map((entry) => (
+              <a key={entry.id} href="/medical-history" className="history-row">
+                <span className="history-row__dot" style={{ background: HISTORY_TYPE_COLOR[entry.type] }} />
+                <div className="history-row__content">
+                  <div className="history-row__top">
+                    <span className="history-row__title">{entry.title}</span>
+                    <span className="history-row__date mono">
+                      {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+                  <p className="history-row__summary text-secondary">{entry.summary}</p>
+                  <span className="history-row__doctor">{entry.doctor} · {entry.type}</span>
+                </div>
+              </a>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Hospital Details & Live Beds Modal */}
+      {selectedHospital && (
+        <HospitalDetailModal hospital={selectedHospital} onClose={() => setSelectedHospital(null)} />
+      )}
 
       <FloatingAIButton />
     </div>
